@@ -8,7 +8,7 @@ enum CellType:
 
 case class Cell(cellType: CellType, temp: Double):
   def conductivity: Double = cellType match
-    case CellType.Sink        => 0.0
+    case CellType.Sink        => 1.0   // freely absorbs heat; temperature is held fixed externally
     case CellType.Source(_)   => 1.0
     case CellType.Air         => Grid.AIR_CONDUCTIVITY
     case CellType.Solid(c)    => c

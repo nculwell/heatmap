@@ -14,9 +14,11 @@ object Simulator:
         val nc = c + dc
         if nr >= 0 && nr < grid.height && nc >= 0 && nc < grid.width then
           val neighbor = grid(nr, nc)
-          if neighbor.temp > cell.temp then
-            cell.conductivity * (neighbor.temp - cell.temp) * DT
-          else 0.0
+          val diff = neighbor.temp - cell.temp
+          if diff > 0 then
+            cell.conductivity * diff * DT       // heat flows in: receiving cell's conductivity
+          else
+            neighbor.conductivity * diff * DT   // heat flows out: receiving neighbor's conductivity
         else 0.0
       .sum
       cell.withTemp(cell.temp + delta)
