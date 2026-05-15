@@ -1,6 +1,10 @@
+# Scala
 target/
 output/
 .bsp/
 .metals/
 .idea/
 *.class
+# Vim
+*~
+.*.swp
