@@ -45,8 +45,7 @@ object Renderer:
   // ---- lighting image ----
 
   def renderLighting(building: Building, outFile: File): Unit =
-    val levels1 = Lighting.computeLevels(building.floor1)
-    val levels2 = Lighting.computeLevels(building.floor2)
+    val (levels1, levels2) = Lighting.computeAll(building)
     val floorW = building.floor1.width  * CELL_PX
     val floorH = building.floor1.height * CELL_PX
     val img    = BufferedImage(floorW * 2 + GAP_PX, floorH, BufferedImage.TYPE_INT_RGB)
