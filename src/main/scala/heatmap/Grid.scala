@@ -9,6 +9,13 @@ case class Grid(cells: Vector[Vector[Cell]]):
   def updated(row: Int, col: Int, cell: Cell): Grid =
     Grid(cells.updated(row, cells(row).updated(col, cell)))
 
+  def maxDelta(other: Grid): Double =
+    var max = 0.0
+    for r <- cells.indices; c <- cells(r).indices do
+      val d = math.abs(cells(r)(c).temp - other.cells(r)(c).temp)
+      if d > max then max = d
+    max
+
 object Grid:
   val AIR_CONDUCTIVITY: Double = digitToConductivity(2)
 

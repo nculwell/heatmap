@@ -15,15 +15,24 @@ object Main:
     val outDir = File(s"output/$timestamp")
     outDir.mkdirs()
 
-    def outFile(n: Int) = File(outDir, s"$n.png")
+    def outFile(n: Int) = File(outDir, f"$n%04d.png")
 
     Renderer.render(initialGrid, outFile(0), minTemp, maxTemp)
     println(s"Frame 0 written to ${outDir.getPath}")
 
-    var grid = initialGrid
-    for second <- 1 to SIMULATION_SECONDS do
-      grid = Simulator.runSecond(grid)
-      Renderer.render(grid, outFile(second), minTemp, maxTemp)
-      if second % 60 == 0 then println(s"Simulated $second seconds (frame $second)")
+    val convergenceThreshold = 0.001
 
-    println(s"Done. ${SIMULATION_SECONDS + 1} frames written to ${outDir.getPath}")
+    var grid = initialGrid
+    var second = 1
+    var converged = false
+    while second <= SIMULATION_SECONDS && !converged do
+      val next = Simulator.runSecond(grid)
+      Renderer.render(next, outFile(second), minTemp, maxTemp)
+      if second % 60 == 0 then println(s"Simulated $second seconds (frame $second)")
+      if next.maxDelta(grid) < convergenceThreshold then
+        converged = true
+        println(s"Converged at $second seconds.")
+      grid = next
+      second += 1
+
+    println(s"Done. ${second} frames written to ${outDir.getPath}")
