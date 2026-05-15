@@ -32,8 +32,8 @@ object Grid:
         val cellType = ch match
           case 'O'            => CellType.Sink
           case 'H'            => CellType.Source(sourceTemp)
-          case '.'            => CellType.Neutral(AIR_CONDUCTIVITY)
-          case d if d.isDigit => CellType.Neutral(digitToConductivity(d.asDigit))
+          case '.'            => CellType.Air
+          case d if d.isDigit => CellType.Solid(digitToConductivity(d.asDigit))
           case other          => throw IllegalArgumentException(s"Unknown cell char: $other")
         val initTemp = ch match
           case 'O' => sinkTemp
