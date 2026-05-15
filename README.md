@@ -54,21 +54,25 @@ Each cell is drawn as a small square. The center dot shows temperature; the bord
 type (see below). The temperature color scale runs from `heatSinkTemp` (coldest) to
 `heatSourceTemp` (hottest):
 
-```
-coldest |-------- temperature --------| hottest
-  black   blue   cyan  green  yellow   red   white
-   0%     20%    40%    60%    75%     90%   100%
-```
+| Fraction | Color |
+|----------|-------|
+| 0% (coldest) | `#000000` |
+| 20% | `#0000C8` |
+| 40% | `#00C8C8` |
+| 60% | `#00C800` |
+| 75% | `#C8C800` |
+| 90% | `#C80000` |
+| 100% (hottest) | `#FFFFFF` |
 
 ### Cell Border Colors
 
-| Border color | Cell type          |
-|--------------|--------------------|
-| Blue         | Heat sink (Z)      |
-| Orange-red   | Heat source (H)    |
-| Gold         | Stairway (S)       |
-| Dark gray    | Open air (.)       |
-| Light gray   | Solid material (1-9, darker = more insulating, lighter = more conductive) |
+| Color | Cell type |
+|-------|-----------|
+| `#0078DC` | Heat sink (Z) |
+| `#DC5000` | Heat source (H) |
+| `#C8AA00` | Stairway (S) |
+| `#373737` | Open air (.) |
+| `#464646` to `#E6E6E6` | Solid material (1-9, darker = more insulating, lighter = more conductive) |
 
 ## Simulation Parameters
 
