@@ -30,13 +30,13 @@ object Grid:
     val cells = rows.toVector.map: row =>
       row.toVector.map: ch =>
         val cellType = ch match
-          case 'O'            => CellType.Sink
+          case 'Z'            => CellType.Sink
           case 'H'            => CellType.Source(sourceTemp)
           case '.'            => CellType.Air
           case d if d.isDigit => CellType.Solid(digitToConductivity(d.asDigit))
           case other          => throw IllegalArgumentException(s"Unknown cell char: $other")
         val initTemp = ch match
-          case 'O' => sinkTemp
+          case 'Z' => sinkTemp
           case 'H' => sourceTemp
           case _   => sinkTemp  // start everything else at ambient
         Cell(cellType, initTemp)
