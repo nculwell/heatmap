@@ -9,8 +9,6 @@ The grid layout is read from a text file with the following structure:
 ```
 heatSourceTemp=<value>
 heatSinkTemp=<value>
-width=<value>
-height=<value>
 [floor1]
 <grid rows>
 [floor2]
@@ -49,6 +47,28 @@ Each run creates a timestamped output directory (e.g., `output/20260515_143022`)
 written as `0000.png`, `0001.png`, etc., one per simulated second, with the two floors shown
 side by side. The simulation runs until convergence or 1 hour of simulated time, whichever
 comes first.
+
+### Temperature Color Key
+
+Each cell is drawn as a small square. The center dot shows temperature; the border shows cell
+type (see below). The temperature color scale runs from `heatSinkTemp` (coldest) to
+`heatSourceTemp` (hottest):
+
+```
+coldest |-------- temperature --------| hottest
+  black   blue   cyan  green  yellow   red   white
+   0%     20%    40%    60%    75%     90%   100%
+```
+
+### Cell Border Colors
+
+| Border color | Cell type          |
+|--------------|--------------------|
+| Blue         | Heat sink (Z)      |
+| Orange-red   | Heat source (H)    |
+| Gold         | Stairway (S)       |
+| Dark gray    | Open air (.)       |
+| Light gray   | Solid material (1-9, darker = more insulating, lighter = more conductive) |
 
 ## Simulation Parameters
 
