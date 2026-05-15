@@ -2,8 +2,11 @@
 
 ## Overview
 
-The simulation models two heat transfer mechanisms: **conduction** (through solids and air at rest)
-and **convection** (heat carried by moving air). Both are applied every time step (0.1 s).
+The simulation models three heat transfer mechanisms applied every time step (0.1 s):
+
+1. **Conduction** -- heat diffuses through solids and stationary air.
+2. **Convection** -- heat is carried by moving air within each floor.
+3. **Inter-floor transfer** -- heat passes between floors through the floor/ceiling and stairwell.
 
 ---
 
@@ -24,25 +27,28 @@ a temperature floor.
 
 ## Convection
 
-Convection is applied only to air cells, after the conduction step.
+Convection is applied to air and stairway cells after the conduction step. Each floor has its own
+independent velocity field that persists between time steps.
 
-### Step 1 -- Compute steady-state velocity
+### Velocity update
 
-At each air cell, a velocity vector is derived from the local temperature gradient:
+The velocity at each air cell is evolved using a buoyancy force and viscous damping:
 
 ```
-v = -alpha * grad(T)
+v_new = DAMPING * v_old - BUOYANCY * grad(T) * dt
 ```
 
 - `grad(T)` is approximated by central differences using the four neighbors.
-- The negative sign means air flows **from hot toward cold** -- the same direction as
-  pressure-driven flow in a room (hot air expands, creating higher pressure, pushing
-  air outward toward cooler, lower-pressure regions).
-- `alpha` (= 0.05) is the convection strength constant; it converts a temperature gradient
-  (F/cell) into a velocity (cells/s).
-- Velocity magnitude is clamped to 3 cells/s to keep the numerical scheme stable.
+- The negative sign means air accelerates **away from hot regions** -- pressure-driven outward
+  flow, as hot air expands and pushes surrounding air toward cooler, lower-pressure areas.
+- `DAMPING` (= 0.9) retains 90% of the velocity each step, modelling viscous dissipation.
+- `BUOYANCY` (= 0.3) is the acceleration per unit temperature gradient (cells/s^2 per F/cell).
+- Velocity magnitude is clamped to 3 cells/s for numerical stability.
 
-### Step 2 -- Advect temperature
+Because velocity is stored between steps, it builds up coherently over time near temperature
+gradients (momentum effects) and decays naturally as gradients shrink toward equilibrium.
+
+### Temperature advection
 
 Temperature is transported along the velocity field using an **upwind finite-difference scheme**.
 For a cell with velocity component `v` along a given axis:
@@ -52,9 +58,8 @@ if v > 0:  dT/dt = -v * (T_cell - T_upwind)
 if v < 0:  dT/dt = -v * (T_downwind - T_cell)
 ```
 
-The upwind side is whichever neighbor the air is flowing *from*. If that neighbor is not an air
-cell (i.e., it is a solid wall, source, or sink), it is treated as a no-flow boundary: the
-gradient is taken as zero and no advection occurs in that direction.
+The upwind side is whichever neighbor the air is flowing *from*. Non-air neighbors (solid walls,
+sources, sinks) act as no-flow boundaries: no advection occurs across them.
 
 The temperature change applied each step is `dT/dt * dt`.
 
@@ -72,29 +77,60 @@ With `dt = 0.1 s` and `MAX_VELOCITY = 3 cells/s`:
 CFL = 3 * 0.1 = 0.3   (stable)
 ```
 
-The maximum physically plausible gradient is roughly 52 F/cell (source at 72 F adjacent to
-sink at 20 F). At that gradient, the unclamped velocity would be `0.05 * 52 = 2.6 cells/s`,
-so the cap is rarely reached.
+---
+
+## Inter-floor Heat Transfer
+
+Every cell pair (floor 1 cell directly below its floor 2 counterpart) exchanges heat each step.
+The rate depends on cell type:
+
+```
+dT = conductivity * (T_other_floor - T_this_floor) * dt
+```
+
+| Cell type    | Conductivity | Represents                         |
+|--------------|--------------|------------------------------------|
+| Stairway (S) | 0.70         | Open air shaft, free heat exchange |
+| All others   | 0.15         | Insulated floor/ceiling (wood)     |
+
+Both floors are updated from their pre-step temperatures (explicit scheme, no ordering bias).
+
+---
+
+## Roof Heat Loss
+
+Every floor-2 cell also loses heat upward through the roof to the outdoor sink temperature:
+
+```
+dT = ROOF_CONDUCTIVITY * (sinkTemp - T_cell) * dt
+```
+
+`ROOF_CONDUCTIVITY` (= 0.08) represents a moderately insulated roof. Sink and source cells
+are unaffected (their temperatures are held fixed or floored by `withTemp`).
 
 ---
 
 ## Approximations and Limitations
 
-- **Steady-state velocity:** The velocity is recomputed from the current temperature field each
-  step rather than being evolved with momentum. This captures the *direction* of convective flow
-  but not inertial effects such as overshooting or vortex shedding.
 - **2D floor plan:** Real convection is primarily vertical (hot air rises). In a horizontal floor
   plan there is no buoyancy axis, so the model approximates the net horizontal pressure-driven
   circulation that results from 3D convection -- not the circulation itself.
-- **No turbulence:** Turbulent mixing in real rooms greatly enhances heat transfer, especially at
-  high temperature differences. This model uses laminar-flow advection only.
+- **No divergence-free constraint:** The velocity field is not projected to be mass-conserving.
+  This is an approximation; the primary effect is enhanced heat mixing rather than accurate
+  flow patterns.
+- **No turbulence:** Turbulent mixing in real rooms greatly enhances heat transfer. This model
+  uses laminar-flow advection only.
 
 ---
 
 ## Parameters
 
-| Constant       | Value  | Meaning                                              |
-|----------------|--------|------------------------------------------------------|
-| `CONV_ALPHA`   | 0.05   | Converts grad(T) (F/cell) to velocity (cells/s)     |
-| `MAX_VELOCITY` | 3.0    | Velocity cap for CFL stability (cells/s)             |
-| `DT`           | 0.1 s  | Time step                                            |
+| Constant              | Value  | Meaning                                                  |
+|-----------------------|--------|----------------------------------------------------------|
+| `CONV_BUOYANCY`       | 0.3    | Air acceleration per unit temperature gradient           |
+| `CONV_DAMPING`        | 0.9    | Fraction of velocity retained per step (viscosity)       |
+| `MAX_VELOCITY`        | 3.0    | Velocity cap for CFL stability (cells/s = 0.75 m/s)     |
+| `FLOOR_CONDUCTIVITY`  | 0.15   | Heat transfer rate through floor/ceiling                 |
+| `STAIR_CONDUCTIVITY`  | 0.70   | Heat transfer rate through stairwell                     |
+| `ROOF_CONDUCTIVITY`   | 0.08   | Heat transfer rate through roof to outdoors              |
+| `DT`                  | 0.1 s  | Time step                                                |

@@ -39,8 +39,6 @@ Open air (`.`) is treated as a fixed internal conductivity equivalent to digit 2
 | Stone wall            | 6-7   | Dense stone or concrete (~1.5-2 W/m K) |
 | Poured concrete       | 7-8   | Very good conductor for building materials |
 
-Convection is modeled. See [convection.md](convection.md) for details.
-
 ## Output
 
 Each run creates a timestamped output directory (e.g., `output/20260515_143022`). Images are
@@ -76,8 +74,12 @@ type (see below). The temperature color scale runs from `heatSinkTemp` (coldest)
 
 ## Simulation Parameters
 
-- Time step: 0.1 seconds
-- Images written: once per simulated second
+- Cell size: 0.25 m (a 40x40 grid represents a 10m x 10m floor plan)
+- Time step: 0.1 seconds (10 steps per simulated second)
+- Images written: once per simulated second; two floors shown side by side
 - Neighbors: 4-directional (up, down, left, right)
 - Temperature units: Fahrenheit
 - Image color scale: fixed (sink temp = cold, source temp = hot)
+- Stops at convergence (max temperature change < 0.1 F/s) or after 1 hour of simulated time
+- Heat transfer: conduction, convection (stored velocity field), inter-floor conduction, roof loss
+- See [convection.md](convection.md) for full details of the heat transfer model
