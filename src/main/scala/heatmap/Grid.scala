@@ -17,6 +17,7 @@ case class Grid(cells: Vector[Vector[Cell]]):
     max
 
 object Grid:
+  val CELL_SIZE_M: Double      = 0.25  // physical size of one grid cell in meters
   val AIR_CONDUCTIVITY: Double = digitToConductivity(2)
 
   def digitToConductivity(d: Int): Double =
@@ -27,6 +28,9 @@ object Grid:
   def fromLines(meta: Map[String, String], rows: Seq[String]): Grid =
     val sourceTemp = meta("heatSourceTemp").toDouble
     val sinkTemp   = meta("heatSinkTemp").toDouble
+    val widths = rows.map(_.length).toSet
+    if widths.size > 1 then
+      throw IllegalArgumentException(s"Rows have inconsistent widths: ${widths.mkString(", ")}")
     val cells = rows.toVector.map: row =>
       row.toVector.map: ch =>
         val cellType = ch match

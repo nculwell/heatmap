@@ -22,6 +22,10 @@ object GridLoader:
 
     val floor1 = Grid.fromLines(meta, sections("floor1"))
     val floor2 = Grid.fromLines(meta, sections("floor2"))
+    if floor1.width != floor2.width || floor1.height != floor2.height then
+      throw IllegalArgumentException(
+        s"Floor dimensions do not match: floor1=${floor1.width}x${floor1.height}, floor2=${floor2.width}x${floor2.height}"
+      )
     (Building(floor1, floor2, sinkTemp), sinkTemp, sourceTemp)
 
   private def parseSections(lines: Seq[String]): Map[String, Seq[String]] =
