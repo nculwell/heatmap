@@ -20,7 +20,7 @@ object Main:
     Renderer.render(building, outFile(0), minTemp, maxTemp)
     println(s"Frame 0 written to ${outDir.getPath}")
 
-    val convergenceThreshold = 0.001
+    val convergenceThreshold = 0.1
 
     var state = building
     var second = 1

@@ -4,17 +4,20 @@ object Simulator:
   val DT               = 0.1
   val STEPS_PER_SECOND = 10
 
-  private val CONV_ALPHA        = 0.05   // convection: velocity per unit temperature gradient
-  private val MAX_VELOCITY      = 3.0    // cells/s, CFL safety cap
-  private val FLOOR_CONDUCTIVITY = 0.15  // heat through floor/ceiling (like wood)
-  private val STAIR_CONDUCTIVITY = 0.70  // heat through stairwell (open air shaft)
+  private val CONV_ALPHA         = 0.05   // convection: velocity per unit temperature gradient
+  private val MAX_VELOCITY       = 3.0    // cells/s, CFL safety cap
+  private val FLOOR_CONDUCTIVITY = 0.15   // heat through floor/ceiling (wood)
+  private val STAIR_CONDUCTIVITY = 0.70   // heat through stairwell (open air shaft)
+  private val ROOF_CONDUCTIVITY  = 0.08   // heat through roof to outdoor (insulated)
 
   private val dirs = List((-1, 0), (1, 0), (0, -1), (0, 1))
 
   def step(building: Building): Building =
-    val afterConduction = conductionStep(building)
-    val afterInterFloor = interFloorStep(afterConduction)
-    convectionStep(afterInterFloor)
+    building
+      |> conductionStep
+      |> interFloorStep
+      |> roofStep
+      |> convectionStep
 
   def runSecond(building: Building): Building =
     (0 until STEPS_PER_SECOND).foldLeft(building)((b, _) => step(b))
@@ -22,7 +25,10 @@ object Simulator:
   // ---- per-floor conduction ----
 
   private def conductionStep(building: Building): Building =
-    Building(conductionGrid(building.floor1), conductionGrid(building.floor2))
+    building.copy(
+      floor1 = conductionGrid(building.floor1),
+      floor2 = conductionGrid(building.floor2),
+    )
 
   private def conductionGrid(grid: Grid): Grid =
     val newCells = Vector.tabulate(grid.height, grid.width): (r, c) =>
@@ -56,12 +62,25 @@ object Simulator:
       val c2   = f2(r, c)
       val cond = if c2.cellType == CellType.Stair then STAIR_CONDUCTIVITY else FLOOR_CONDUCTIVITY
       c2.withTemp(c2.temp + cond * (c1.temp - c2.temp) * DT)
-    Building(Grid(newCells1), Grid(newCells2))
+    building.copy(floor1 = Grid(newCells1), floor2 = Grid(newCells2))
+
+  // ---- roof heat loss ----
+  // Every floor-2 cell conducts heat through the roof to the outdoor sink temperature.
+
+  private def roofStep(building: Building): Building =
+    val outdoor = building.sinkTemp
+    val newCells2 = Vector.tabulate(building.floor2.height, building.floor2.width): (r, c) =>
+      val cell = building.floor2(r, c)
+      cell.withTemp(cell.temp + ROOF_CONDUCTIVITY * (outdoor - cell.temp) * DT)
+    building.copy(floor2 = Grid(newCells2))
 
   // ---- per-floor convection ----
 
   private def convectionStep(building: Building): Building =
-    Building(convectionGrid(building.floor1), convectionGrid(building.floor2))
+    building.copy(
+      floor1 = convectionGrid(building.floor1),
+      floor2 = convectionGrid(building.floor2),
+    )
 
   private def convectionGrid(grid: Grid): Grid =
     val newCells = Vector.tabulate(grid.height, grid.width): (r, c) =>
@@ -99,3 +118,6 @@ object Simulator:
 
   private def inBounds(grid: Grid, r: Int, c: Int): Boolean =
     r >= 0 && r < grid.height && c >= 0 && c < grid.width
+
+  extension [A](a: A)
+    private inline def |>(f: A => A): A = f(a)

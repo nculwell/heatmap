@@ -1,6 +1,6 @@
 package heatmap
 
-case class Building(floor1: Grid, floor2: Grid):
+case class Building(floor1: Grid, floor2: Grid, sinkTemp: Double):
   def maxDelta(other: Building): Double =
     math.max(floor1.maxDelta(other.floor1), floor2.maxDelta(other.floor2))
 
@@ -11,4 +11,4 @@ object Building:
         cell.cellType match
           case CellType.Source(_) => Cell(CellType.Air, sinkTemp)
           case _                  => cell
-    Building(floor1, Grid(floor2Cells))
+    Building(floor1, Grid(floor2Cells), sinkTemp)
