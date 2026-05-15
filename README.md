@@ -22,6 +22,7 @@ heatSinkTemp=<value>
 | `Z` | Heat sink (outdoors) -- fixed temperature, never changes |
 | `H` | Heat source (heater) -- maintains a temperature floor |
 | `S` | Stairway -- open shaft connecting floors vertically |
+| `L` | Light source -- emits light; transparent and behaves like air for heat |
 | `.` | Open air -- neutral cell with low conductivity |
 | `1`-`9` | Solid material -- digit indicates conductivity (1=insulator, 9=conductor) |
 
@@ -41,10 +42,13 @@ Open air (`.`) is treated as a fixed internal conductivity equivalent to digit 2
 
 ## Output
 
-Each run creates a timestamped output directory (e.g., `output/20260515_143022`). Images are
-written as `0000.png`, `0001.png`, etc., one per simulated second, with the two floors shown
-side by side. The simulation runs until convergence or 1 hour of simulated time, whichever
-comes first.
+Each run creates a timestamped output directory (e.g., `output/20260515_143022`). Two types
+of images are written:
+
+- `light.png` -- a single static light map written once at the start
+- `0000.png`, `0001.png`, etc. -- one heat map per simulated second, two floors side by side
+
+The simulation runs until convergence or 1 hour of simulated time, whichever comes first.
 
 ### Temperature Color Key
 
@@ -62,15 +66,27 @@ type (see below). The temperature color scale runs from `heatSinkTemp` (coldest)
 | 90% | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/C80000'/> |
 | 100% (hottest) | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/FFFFFF'/> |
 
-### Cell Border Colors
+### Cell Border Colors (heat map)
 
 | Color | Cell type |
 |-------|-----------|
 | `#0078DC` | Heat sink (Z) |
 | `#DC5000` | Heat source (H) |
 | `#C8AA00` | Stairway (S) |
+| `#FFFF96` | Light source (L) |
 | `#373737` | Open air (.) |
 | `#464646` to `#E6E6E6` | Solid material (1-9, darker = more insulating, lighter = more conductive) |
+
+### Light Map
+
+The light map (`light.png`) uses the same cell layout as the heat map. The center dot shows
+light level from black (no light) to white (maximum). Cell borders use the same colors as the
+heat map, except all solid walls share a uniform `#969696` border (insulation is irrelevant for
+lighting), and heat sinks show as plain air (dark gray border).
+
+Light propagates by raycasting from each `L` cell. Solid walls and sinks block light but their
+facing surfaces can be lit. Light bleeds slightly around corners and passes through stairways
+between floors.
 
 ## Simulation Parameters
 
