@@ -1,6 +1,14 @@
 package heatmap
 
-case class Building(floor1: Grid, floor2: Grid, sinkTemp: Double):
+case class Building(
+  floor1: Grid,
+  floor2: Grid,
+  sinkTemp: Double,
+  vr1: Vector[Vector[Double]] = Vector.empty,
+  vc1: Vector[Vector[Double]] = Vector.empty,
+  vr2: Vector[Vector[Double]] = Vector.empty,
+  vc2: Vector[Vector[Double]] = Vector.empty,
+):
   def maxDelta(other: Building): Double =
     math.max(floor1.maxDelta(other.floor1), floor2.maxDelta(other.floor2))
 

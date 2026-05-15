@@ -4,7 +4,8 @@ object Simulator:
   val DT               = 0.1
   val STEPS_PER_SECOND = 10
 
-  private val CONV_ALPHA         = 0.05   // convection: velocity per unit temperature gradient
+  private val CONV_BUOYANCY      = 0.3    // acceleration per unit temperature gradient (cells/s^2 per F/cell)
+  private val CONV_DAMPING       = 0.9    // fraction of velocity retained each step (viscosity)
   private val MAX_VELOCITY       = 3.0    // cells/s, CFL safety cap
   private val FLOOR_CONDUCTIVITY = 0.15   // heat through floor/ceiling (wood)
   private val STAIR_CONDUCTIVITY = 0.70   // heat through stairwell (open air shaft)
@@ -46,8 +47,6 @@ object Simulator:
     Grid(newCells)
 
   // ---- inter-floor heat transfer ----
-  // Floor conduction applies to every cell pair; stairwell cells use a higher rate.
-  // Both floors are updated from the pre-step values (explicit scheme).
 
   private def interFloorStep(building: Building): Building =
     val f1 = building.floor1
@@ -65,7 +64,6 @@ object Simulator:
     building.copy(floor1 = Grid(newCells1), floor2 = Grid(newCells2))
 
   // ---- roof heat loss ----
-  // Every floor-2 cell conducts heat through the roof to the outdoor sink temperature.
 
   private def roofStep(building: Building): Building =
     val outdoor = building.sinkTemp
@@ -74,25 +72,42 @@ object Simulator:
       cell.withTemp(cell.temp + ROOF_CONDUCTIVITY * (outdoor - cell.temp) * DT)
     building.copy(floor2 = Grid(newCells2))
 
-  // ---- per-floor convection ----
+  // ---- per-floor convection with stored velocity ----
+  // Velocity is driven by -∇T (pressure-driven outward flow from hot regions)
+  // and decays each step via viscous damping.
 
   private def convectionStep(building: Building): Building =
-    building.copy(
-      floor1 = convectionGrid(building.floor1),
-      floor2 = convectionGrid(building.floor2),
-    )
+    val (g1, vr1, vc1) = convectionFloor(building.floor1, building.vr1, building.vc1)
+    val (g2, vr2, vc2) = convectionFloor(building.floor2, building.vr2, building.vc2)
+    building.copy(floor1 = g1, floor2 = g2, vr1 = vr1, vc1 = vc1, vr2 = vr2, vc2 = vc2)
 
-  private def convectionGrid(grid: Grid): Grid =
+  private def convectionFloor(
+    grid: Grid,
+    vr: Vector[Vector[Double]],
+    vc: Vector[Vector[Double]],
+  ): (Grid, Vector[Vector[Double]], Vector[Vector[Double]]) =
+    val vrCur = if vr.isEmpty then Vector.fill(grid.height, grid.width)(0.0) else vr
+    val vcCur = if vc.isEmpty then Vector.fill(grid.height, grid.width)(0.0) else vc
+
+    // Update velocity: buoyancy accelerates away from hot, viscosity damps it.
+    val newVr = Vector.tabulate(grid.height, grid.width): (r, c) =>
+      if !isFluid(grid(r, c).cellType) then 0.0
+      else clamp(CONV_DAMPING * vrCur(r)(c) - CONV_BUOYANCY * centralDiff(grid, r, c, 1, 0) * DT)
+
+    val newVc = Vector.tabulate(grid.height, grid.width): (r, c) =>
+      if !isFluid(grid(r, c).cellType) then 0.0
+      else clamp(CONV_DAMPING * vcCur(r)(c) - CONV_BUOYANCY * centralDiff(grid, r, c, 0, 1) * DT)
+
+    // Advect temperature along the updated velocity field.
     val newCells = Vector.tabulate(grid.height, grid.width): (r, c) =>
       val cell = grid(r, c)
       if !isFluid(cell.cellType) then cell
       else
-        val vr = clamp(-CONV_ALPHA * centralDiff(grid, r, c, dr = 1, dc = 0))
-        val vc = clamp(-CONV_ALPHA * centralDiff(grid, r, c, dr = 0, dc = 1))
-        val delta = upwindAdv(grid, r, c, dr = 1, dc = 0, v = vr) +
-                    upwindAdv(grid, r, c, dr = 0, dc = 1, v = vc)
+        val delta = upwindAdv(grid, r, c, 1, 0, newVr(r)(c)) +
+                    upwindAdv(grid, r, c, 0, 1, newVc(r)(c))
         cell.withTemp(cell.temp + delta * DT)
-    Grid(newCells)
+
+    (Grid(newCells), newVr, newVc)
 
   private def centralDiff(grid: Grid, r: Int, c: Int, dr: Int, dc: Int): Double =
     val T   = grid(r, c).temp
