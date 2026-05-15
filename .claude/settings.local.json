@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"C:\\\\Users\\\\ncmad\\\\Documents\\\\src\\\\heatmap\" && & \"$env:LOCALAPPDATA\\\\Coursier\\\\data\\\\bin\\\\sbt.bat\" compile 2>&1)"
+    ]
+  }
+}
