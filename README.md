@@ -56,13 +56,13 @@ type (see below). The temperature color scale runs from `heatSinkTemp` (coldest)
 
 | Fraction | Color |
 |----------|-------|
-| 0% (coldest) | `#000000` |
-| 20% | `#0000C8` |
-| 40% | `#00C8C8` |
-| 60% | `#00C800` |
-| 75% | `#C8C800` |
-| 90% | `#C80000` |
-| 100% (hottest) | `#FFFFFF` |
+| 0% (coldest) | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/000000'/> |
+| 20% | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/0000C8'/> |
+| 40% | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/00C8C8'/> |
+| 60% | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/00C800'/> |
+| 75% | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/C8C800'/> |
+| 90% | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/C80000'/> |
+| 100% (hottest) | <img valign='middle' alt='blue' src='https://readme-swatches.vercel.app/FFFFFF'/> |
 
 ### Cell Border Colors
 
