@@ -7,41 +7,47 @@ import javax.imageio.ImageIO
 object Renderer:
   private val CELL_PX  = 12
   private val DOT_SIZE = 4
-  private val DOT_OFF  = (CELL_PX - DOT_SIZE) / 2  // offset to center the dot
+  private val DOT_OFF  = (CELL_PX - DOT_SIZE) / 2
+  private val GAP_PX   = 6   // black separator between the two floors
 
-  def render(grid: Grid, outFile: File, minTemp: Double, maxTemp: Double): Unit =
-    val img = BufferedImage(grid.width * CELL_PX, grid.height * CELL_PX, BufferedImage.TYPE_INT_RGB)
+  def render(building: Building, outFile: File, minTemp: Double, maxTemp: Double): Unit =
+    val floorW = building.floor1.width  * CELL_PX
+    val floorH = building.floor1.height * CELL_PX
+    val img    = BufferedImage(floorW * 2 + GAP_PX, floorH, BufferedImage.TYPE_INT_RGB)
+    renderFloor(img, building.floor1, xOffset = 0,             minTemp, maxTemp)
+    renderFloor(img, building.floor2, xOffset = floorW + GAP_PX, minTemp, maxTemp)
+    ImageIO.write(img, "png", outFile)
+
+  private def renderFloor(img: BufferedImage, grid: Grid, xOffset: Int,
+                           minTemp: Double, maxTemp: Double): Unit =
     for
       row <- 0 until grid.height
       col <- 0 until grid.width
     do
-      renderCell(img, grid(row, col), col * CELL_PX, row * CELL_PX, minTemp, maxTemp)
-    ImageIO.write(img, "png", outFile)
+      renderCell(img, grid(row, col), xOffset + col * CELL_PX, row * CELL_PX, minTemp, maxTemp)
 
-  private def renderCell(img: BufferedImage, cell: Cell, x0: Int, y0: Int, minTemp: Double, maxTemp: Double): Unit =
-    // black background
+  private def renderCell(img: BufferedImage, cell: Cell, x0: Int, y0: Int,
+                          minTemp: Double, maxTemp: Double): Unit =
     for py <- y0 until y0 + CELL_PX; px <- x0 until x0 + CELL_PX do
       img.setRGB(px, py, 0)
 
-    // 1px border in type color
     val border = typeColor(cell.cellType)
     for i <- 0 until CELL_PX do
-      img.setRGB(x0 + i, y0,              border)
+      img.setRGB(x0 + i, y0,               border)
       img.setRGB(x0 + i, y0 + CELL_PX - 1, border)
-      img.setRGB(x0,     y0 + i,          border)
+      img.setRGB(x0,     y0 + i,            border)
       img.setRGB(x0 + CELL_PX - 1, y0 + i, border)
 
-    // center dot in temperature color
     val dot = tempToRgb(cell.temp, minTemp, maxTemp)
     for dy <- 0 until DOT_SIZE; dx <- 0 until DOT_SIZE do
       img.setRGB(x0 + DOT_OFF + dx, y0 + DOT_OFF + dy, dot)
 
   private def typeColor(cellType: CellType): Int = cellType match
-    case CellType.Sink      => rgb(0, 120, 220)       // blue
-    case CellType.Source(_) => rgb(220, 80, 0)        // orange-red
-    case CellType.Air       => rgb(55, 55, 55)        // dim gray
+    case CellType.Sink      => rgb(0, 120, 220)
+    case CellType.Source(_) => rgb(220, 80, 0)
+    case CellType.Air       => rgb(55, 55, 55)
+    case CellType.Stair     => rgb(200, 170, 0)   // gold: visually distinct stairwell
     case CellType.Solid(c)  =>
-      // conductivity range 0.02–0.95 → gray 70–230 (darker=insulator, lighter=conductor)
       val t = (c - 0.02) / (0.95 - 0.02)
       val v = (70 + t * 160).toInt
       rgb(v, v, v)
@@ -50,7 +56,6 @@ object Renderer:
 
   private def tempToRgb(temp: Double, minTemp: Double, maxTemp: Double): Int =
     val t = ((temp - minTemp) / (maxTemp - minTemp)).max(0.0).min(1.0)
-    // black -> blue -> cyan -> green -> yellow -> red -> white
     val stops = Array(
       (0.00, (0,   0,   0  )),
       (0.20, (0,   0,   200)),

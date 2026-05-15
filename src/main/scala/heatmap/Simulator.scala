@@ -4,19 +4,27 @@ object Simulator:
   val DT               = 0.1
   val STEPS_PER_SECOND = 10
 
-  private val CONV_ALPHA   = 0.05  // velocity = CONV_ALPHA * |∇T|; kept small for CFL stability
-  private val MAX_VELOCITY = 3.0   // cells/s, hard cap for safety
+  private val CONV_ALPHA        = 0.05   // convection: velocity per unit temperature gradient
+  private val MAX_VELOCITY      = 3.0    // cells/s, CFL safety cap
+  private val FLOOR_CONDUCTIVITY = 0.15  // heat through floor/ceiling (like wood)
+  private val STAIR_CONDUCTIVITY = 0.70  // heat through stairwell (open air shaft)
 
   private val dirs = List((-1, 0), (1, 0), (0, -1), (0, 1))
 
-  def step(grid: Grid): Grid = convectionStep(conductionStep(grid))
+  def step(building: Building): Building =
+    val afterConduction = conductionStep(building)
+    val afterInterFloor = interFloorStep(afterConduction)
+    convectionStep(afterInterFloor)
 
-  def runSecond(grid: Grid): Grid =
-    (0 until STEPS_PER_SECOND).foldLeft(grid)((g, _) => step(g))
+  def runSecond(building: Building): Building =
+    (0 until STEPS_PER_SECOND).foldLeft(building)((b, _) => step(b))
 
-  // ---- conduction ----
+  // ---- per-floor conduction ----
 
-  private def conductionStep(grid: Grid): Grid =
+  private def conductionStep(building: Building): Building =
+    Building(conductionGrid(building.floor1), conductionGrid(building.floor2))
+
+  private def conductionGrid(grid: Grid): Grid =
     val newCells = Vector.tabulate(grid.height, grid.width): (r, c) =>
       val cell = grid(r, c)
       val delta = dirs.map: (dr, dc) =>
@@ -31,14 +39,34 @@ object Simulator:
       cell.withTemp(cell.temp + delta)
     Grid(newCells)
 
-  // ---- convection ----
-  // Steady-state velocity: v = -CONV_ALPHA * ∇T (air flows from hot toward cold).
-  // Temperature is then advected along v using an upwind scheme.
+  // ---- inter-floor heat transfer ----
+  // Floor conduction applies to every cell pair; stairwell cells use a higher rate.
+  // Both floors are updated from the pre-step values (explicit scheme).
 
-  private def convectionStep(grid: Grid): Grid =
+  private def interFloorStep(building: Building): Building =
+    val f1 = building.floor1
+    val f2 = building.floor2
+    val newCells1 = Vector.tabulate(f1.height, f1.width): (r, c) =>
+      val c1   = f1(r, c)
+      val c2   = f2(r, c)
+      val cond = if c1.cellType == CellType.Stair then STAIR_CONDUCTIVITY else FLOOR_CONDUCTIVITY
+      c1.withTemp(c1.temp + cond * (c2.temp - c1.temp) * DT)
+    val newCells2 = Vector.tabulate(f2.height, f2.width): (r, c) =>
+      val c1   = f1(r, c)
+      val c2   = f2(r, c)
+      val cond = if c2.cellType == CellType.Stair then STAIR_CONDUCTIVITY else FLOOR_CONDUCTIVITY
+      c2.withTemp(c2.temp + cond * (c1.temp - c2.temp) * DT)
+    Building(Grid(newCells1), Grid(newCells2))
+
+  // ---- per-floor convection ----
+
+  private def convectionStep(building: Building): Building =
+    Building(convectionGrid(building.floor1), convectionGrid(building.floor2))
+
+  private def convectionGrid(grid: Grid): Grid =
     val newCells = Vector.tabulate(grid.height, grid.width): (r, c) =>
       val cell = grid(r, c)
-      if cell.cellType != CellType.Air then cell
+      if !isFluid(cell.cellType) then cell
       else
         val vr = clamp(-CONV_ALPHA * centralDiff(grid, r, c, dr = 1, dc = 0))
         val vc = clamp(-CONV_ALPHA * centralDiff(grid, r, c, dr = 0, dc = 1))
@@ -47,27 +75,25 @@ object Simulator:
         cell.withTemp(cell.temp + delta * DT)
     Grid(newCells)
 
-  // Central difference of temperature along axis (dr, dc).
   private def centralDiff(grid: Grid, r: Int, c: Int, dr: Int, dc: Int): Double =
     val T   = grid(r, c).temp
     val fwd = if inBounds(grid, r + dr, c + dc) then grid(r + dr, c + dc).temp else T
     val bwd = if inBounds(grid, r - dr, c - dc) then grid(r - dr, c - dc).temp else T
     (fwd - bwd) / 2.0
 
-  // Upwind advection: returns dT/dt contribution along axis (dr, dc) with velocity v.
-  // Non-air cells act as no-flow boundaries.
   private def upwindAdv(grid: Grid, r: Int, c: Int, dr: Int, dc: Int, v: Double): Double =
     val T = grid(r, c).temp
-    if v > 0 then
-      -v * (T - airTemp(grid, r - dr, c - dc, T))
-    else if v < 0 then
-      -v * (airTemp(grid, r + dr, c + dc, T) - T)
+    if v > 0 then      -v * (T - fluidTemp(grid, r - dr, c - dc, T))
+    else if v < 0 then -v * (fluidTemp(grid, r + dr, c + dc, T) - T)
     else 0.0
 
-  private def airTemp(grid: Grid, nr: Int, nc: Int, fallback: Double): Double =
-    if inBounds(grid, nr, nc) && grid(nr, nc).cellType == CellType.Air
+  private def fluidTemp(grid: Grid, nr: Int, nc: Int, fallback: Double): Double =
+    if inBounds(grid, nr, nc) && isFluid(grid(nr, nc).cellType)
     then grid(nr, nc).temp
     else fallback
+
+  private def isFluid(ct: CellType): Boolean =
+    ct == CellType.Air || ct == CellType.Stair
 
   private def clamp(v: Double): Double = v.max(-MAX_VELOCITY).min(MAX_VELOCITY)
 
