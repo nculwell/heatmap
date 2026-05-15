@@ -5,6 +5,7 @@ enum CellType:
   case Source(floorTemp: Double)
   case Air
   case Stair                      // open stairwell; conducts laterally like air, connects floors vertically
+  case Light                      // light source; behaves like air for heat purposes
   case Solid(conductivity: Double)
 
 case class Cell(cellType: CellType, temp: Double):
@@ -13,6 +14,7 @@ case class Cell(cellType: CellType, temp: Double):
     case CellType.Source(_)   => 1.0
     case CellType.Air         => Grid.AIR_CONDUCTIVITY
     case CellType.Stair       => Grid.AIR_CONDUCTIVITY
+    case CellType.Light       => Grid.AIR_CONDUCTIVITY
     case CellType.Solid(c)    => c
 
   def withTemp(t: Double): Cell = cellType match
@@ -20,4 +22,5 @@ case class Cell(cellType: CellType, temp: Double):
     case CellType.Source(floor) => copy(temp = math.max(t, floor))
     case CellType.Air           => copy(temp = t)
     case CellType.Stair         => copy(temp = t)
+    case CellType.Light         => copy(temp = t)
     case CellType.Solid(_)      => copy(temp = t)

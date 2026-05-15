@@ -127,7 +127,7 @@ object Simulator:
     else fallback
 
   private def isFluid(ct: CellType): Boolean =
-    ct == CellType.Air || ct == CellType.Stair
+    ct == CellType.Air || ct == CellType.Stair || ct == CellType.Light
 
   private def clamp(v: Double): Double = v.max(-MAX_VELOCITY).min(MAX_VELOCITY)
 

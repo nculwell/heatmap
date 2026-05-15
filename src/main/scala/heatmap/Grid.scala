@@ -38,6 +38,7 @@ object Grid:
           case 'H'            => CellType.Source(sourceTemp)
           case '.'            => CellType.Air
           case 'S'            => CellType.Stair
+          case 'L'            => CellType.Light
           case d if d.isDigit => CellType.Solid(digitToConductivity(d.asDigit))
           case other          => throw IllegalArgumentException(s"Unknown cell char: $other")
         val initTemp = ch match

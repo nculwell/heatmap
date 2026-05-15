@@ -42,11 +42,64 @@ object Renderer:
     for dy <- 0 until DOT_SIZE; dx <- 0 until DOT_SIZE do
       img.setRGB(x0 + DOT_OFF + dx, y0 + DOT_OFF + dy, dot)
 
+  // ---- lighting image ----
+
+  def renderLighting(building: Building, outFile: File): Unit =
+    val levels1 = Lighting.computeLevels(building.floor1)
+    val levels2 = Lighting.computeLevels(building.floor2)
+    val floorW = building.floor1.width  * CELL_PX
+    val floorH = building.floor1.height * CELL_PX
+    val img    = BufferedImage(floorW * 2 + GAP_PX, floorH, BufferedImage.TYPE_INT_RGB)
+    renderLightFloor(img, building.floor1, levels1, xOffset = 0)
+    renderLightFloor(img, building.floor2, levels2, xOffset = floorW + GAP_PX)
+    ImageIO.write(img, "png", outFile)
+
+  private def renderLightFloor(img: BufferedImage, grid: Grid,
+                                levels: Vector[Vector[Double]], xOffset: Int): Unit =
+    for
+      row <- 0 until grid.height
+      col <- 0 until grid.width
+    do
+      val cell  = grid(row, col)
+      val level = levels(row)(col)
+      val x0    = xOffset + col * CELL_PX
+      val y0    = row * CELL_PX
+
+      for py <- y0 until y0 + CELL_PX; px <- x0 until x0 + CELL_PX do
+        img.setRGB(px, py, 0)
+
+      val border = lightTypeColor(cell.cellType)
+      for i <- 0 until CELL_PX do
+        img.setRGB(x0 + i, y0,               border)
+        img.setRGB(x0 + i, y0 + CELL_PX - 1, border)
+        img.setRGB(x0,     y0 + i,            border)
+        img.setRGB(x0 + CELL_PX - 1, y0 + i, border)
+
+      val dot = if cell.cellType == CellType.Light then rgb(255, 255, 150)
+                else levelToRgb(level)
+      for dy <- 0 until DOT_SIZE; dx <- 0 until DOT_SIZE do
+        img.setRGB(x0 + DOT_OFF + dx, y0 + DOT_OFF + dy, dot)
+
+  private def lightTypeColor(cellType: CellType): Int = cellType match
+    case CellType.Sink      => rgb(55, 55, 55)      // shown as air: outdoor space, not a special indicator
+    case CellType.Source(_) => rgb(220, 80, 0)
+    case CellType.Air       => rgb(55, 55, 55)
+    case CellType.Stair     => rgb(200, 170, 0)
+    case CellType.Light     => rgb(255, 255, 150)
+    case CellType.Solid(_)  => rgb(150, 150, 150)   // uniform: insulation irrelevant for lighting
+
+  private def levelToRgb(level: Double): Int =
+    val v = (level * 255).toInt.max(0).min(255)
+    rgb(v, v, v)
+
+  // ---- cell type border color ----
+
   private def typeColor(cellType: CellType): Int = cellType match
     case CellType.Sink      => rgb(0, 120, 220)
     case CellType.Source(_) => rgb(220, 80, 0)
     case CellType.Air       => rgb(55, 55, 55)
-    case CellType.Stair     => rgb(200, 170, 0)   // gold: visually distinct stairwell
+    case CellType.Stair     => rgb(200, 170, 0)
+    case CellType.Light     => rgb(255, 255, 150)  // warm white: visible light source
     case CellType.Solid(c)  =>
       val t = (c - 0.02) / (0.95 - 0.02)
       val v = (70 + t * 160).toInt

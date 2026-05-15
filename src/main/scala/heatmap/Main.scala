@@ -17,6 +17,9 @@ object Main:
 
     def outFile(n: Int) = File(outDir, f"$n%04d.png")
 
+    Renderer.renderLighting(building, File(outDir, "light.png"))
+    println(s"Light map written to ${outDir.getPath}/light.png")
+
     Renderer.render(building, outFile(0), minTemp, maxTemp)
     println(s"Frame 0 written to ${outDir.getPath}")
 
